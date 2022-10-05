@@ -24,7 +24,7 @@ class UserBase(BaseModel):
     email: EmailStr = Field(...)
     full_name: str | None = None
 
-    avatar: str
+    avatar: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     is_active: bool | None = None

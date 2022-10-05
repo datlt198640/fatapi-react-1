@@ -1,4 +1,7 @@
-from fastapi import Depends, HTTPException, APIRouter
+import pyexcel
+from openpyxl import load_workbook
+
+from fastapi import Depends, HTTPException, APIRouter, UploadFile
 from fastapi.encoders import jsonable_encoder
 
 from starlette import status
@@ -8,7 +11,8 @@ from database import database
 
 from .schemas import UserIn, UserOut
 from .models import User
-from .utils import get_password_hash
+from .utils import get_password_hash, download_excel, file_dest, get_column_map, get_cell_data, to_str, create
+from .service import UserService
 
 
 user_collections = database.get_collection("users")
@@ -78,3 +82,54 @@ async def remove_list_user(ids: str = "") -> None:
             user_collections.delete_one({"_id": user_id})
         else:
             raise HTTPException(status_code=404, detail=f"No car with id={user_id}.")
+
+
+@user_router.get("/download-all/")
+async def export_users():
+    # current_user = UserService.get_current_user()
+    result = []
+    users = user_collections.find({}, {"password": 0, "_id": 1})
+    async for user in users:
+        result.append(UserOut(**user))
+    return download_excel(result)
+
+
+@user_router.post("/upload-image")
+async def upload_image(file: UploadFile):
+    filename = file.filename
+    extension = filename.split(".")[-1]
+    if extension not in ["png", "jpg"]:
+        return {"status": "error", "detail": "File extension is not allowed"}
+    generated_name = file_dest(filename)
+    file_content = await file.read()
+    with open(generated_name, "wb") as file:
+        file.write(file_content)
+    file.close()
+    return {"filename": filename}
+
+
+@user_router.post("/import-user")
+async def import_users(file: UploadFile):
+    filename = file.filename
+    extension = filename.split(".")[-1]
+    content = await file.read()
+    book = pyexcel.get_book(file_type=extension, file_content=content)
+    sheet = book.sheet_by_index(0)
+
+    col_map = get_column_map()
+    result = []
+    start_row = 1
+    for index, row in enumerate(sheet):
+        if index < start_row:
+            continue
+        c = get_cell_data(row)
+        to_str_inner = to_str(c, col_map)
+        data = {
+            "username": to_str_inner("username") or None,
+            "full_name": to_str_inner("full_name"),
+            "email": to_str_inner("email"),
+            "password": to_str_inner("password")
+
+        }
+        result.append(create(UserIn(**data), user_collections))
+    return result
