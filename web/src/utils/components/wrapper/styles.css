@@ -1,0 +1,30 @@
+.wrapper-container .trigger {
+    font-size: 18px;
+    line-height: 30px;
+    padding: 5px 5px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.wrapper-container .trigger:hover {
+    color: #1890ff;
+}
+
+.wrapper-container .logo {
+    height: 30px;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    padding-left: 25px;
+}
+
+.wrapper-container .site-layout .site-layout-header {
+    background: #EEEEEE;
+    height: 34px;
+    line-height: 34px;
+}
+
+.wrapper-container .site-layout .site-layout-content {
+    background: #fff;
+}

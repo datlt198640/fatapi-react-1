@@ -1,0 +1,5 @@
+rm -rf dist && mkdir dist
+yarn build
+rm -rf ../api/public/client
+cp -r dist ../api/public/client
+chmod -R 755 ../api/public/client
