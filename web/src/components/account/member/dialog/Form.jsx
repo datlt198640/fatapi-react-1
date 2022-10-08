@@ -28,23 +28,24 @@ export default function MemberForm({ data, onChange }) {
   // const listGroup = useRecoilValue(listGroupSt);
 
   const initialValues = Utils.isEmpty(data) ? emptyRecord : { ...data };
-  const id = initialValues.id;
+  const id = initialValues._id;
   const endPoint = id ? `${urls.crud}${id}` : urls.crud;
   const method = id ? "put" : "post";
 
   const formAttrs = {
-    memberUID: {
-      name: "member_remote_id",
-      label: formLabels.memberUID,
+    username: {
+      name: "username",
+      label: formLabels.username,
       rules: [FormUtils.ruleRequired()],
-    },
-    phone_number: {
-      name: "phone_number",
-      label: formLabels.phone_number,
     },
     email: {
       name: "email",
       label: formLabels.email,
+      rules: [FormUtils.ruleRequired()],
+    },
+    fullName: {
+      name: "full_name",
+      label: formLabels.full_name,
     },
     password: {
       name: "password",
@@ -66,21 +67,18 @@ export default function MemberForm({ data, onChange }) {
           .catch(FormUtils.setFormErrors(form))
       }
     >
+      <Form.Item {...formAttrs.username}>
+        <Input />
+      </Form.Item>
       <Form.Item {...formAttrs.email}>
         <Input />
       </Form.Item>
-      <Form.Item {...formAttrs.phone_number}>
-        <Input />
-      </Form.Item>
-      <Form.Item {...formAttrs.memberUID}>
+      <Form.Item {...formAttrs.fullName}>
         <Input />
       </Form.Item>
       <Form.Item {...formAttrs.password}>
         <Input.Password />
       </Form.Item>
-      {/* <Form.Item {...formAttrs.groups}>
-        <SelectInput options={listGroup} mode="multiple" />
-      </Form.Item> */}
     </Form>
   );
 }

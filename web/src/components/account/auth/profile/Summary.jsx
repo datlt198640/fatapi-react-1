@@ -5,21 +5,21 @@ export default function ProfileSummary(data) {
     <div>
       <Row style={{ margin: "20px 0" }}>
         <Col span={6}>
+          <strong>Username</strong>
+        </Col>
+        <Col span={18}>{data.username}</Col>
+      </Row>
+      <Row style={{ margin: "20px 0" }}>
+        <Col span={6}>
           <strong>Email</strong>
         </Col>
         <Col span={18}>{data.email}</Col>
       </Row>
       <Row style={{ margin: "20px 0" }}>
         <Col span={6}>
-          <strong>Số điện thoại</strong>
+          <strong>Fullname</strong>
         </Col>
-        <Col span={18}>{data.phone_number}</Col>
-      </Row>
-      <Row style={{ margin: "20px 0" }}>
-        <Col span={6}>
-          <strong>Họ và tên</strong>
-        </Col>
-        <Col span={18}>{data.fullname}</Col>
+        <Col span={18}>{data.full_name}</Col>
       </Row>
     </div>
   );

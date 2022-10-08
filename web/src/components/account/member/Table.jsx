@@ -1,15 +1,20 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Row, Col, Button, Table, Typography } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined, FileExcelFilled, EyeOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  FileExcelFilled,
+  EyeOutlined,
+} from "@ant-design/icons";
 import Pagination, { defaultLinks } from "utils/components/table/Pagination";
 import SearchInput from "utils/components/table/SearchInput";
 import Utils from "utils/Utils";
 import Dialog from "./dialog";
 import { urls, columns, messages } from "./config";
 
-
-const {Text} = Typography
+const { Text } = Typography;
 
 export default function MemberTable() {
   const [init, setInit] = useState(true);
@@ -17,18 +22,20 @@ export default function MemberTable() {
   const [ids, setIds] = useState([]);
   const [links, setLinks] = useState(defaultLinks);
 
-  // const convertIdToLabel = (data) => {
-
-  //   const genderValue =  [
-  //       {value: 0, label: 'Male'},
-  //       {value: 1, label: 'Female'},
-  //   ]
-
-  //   Utils.idToLabel(data.items, data.extra.list_membership_type, "membership_type");
-  //   Utils.idToLabel(data.items, genderValue, "gender");
-  // };
-
-  console.log("list", list)
+  const convertBoolVal = (data) => {
+    return data.map((item) => {
+      if (item.is_active) {
+        item["is_active"] = "active";
+      } else {
+        item["is_active"] = "inactive";
+      }
+      if (item.is_admin) {
+        item["is_admin"] = "admin";
+      } else {
+        item["is_admin"] = "user";
+      }
+    });
+  };
 
   const getList =
     (showLoading = false) =>
@@ -36,9 +43,9 @@ export default function MemberTable() {
       showLoading && Utils.toggleGlobalLoading();
       Utils.apiCall(url ? url : urls.crud, params)
         .then((resp) => {
-          // setLinks(resp.data.links);
-          // convertIdToLabel(resp.data)
-          setList(Utils.appendKey(resp.data));
+          setLinks(resp.data.links);
+          convertBoolVal(resp.data.items);
+          setList(Utils.appendKey(resp.data.items));
         })
         .finally(() => {
           setInit(false);
@@ -61,7 +68,7 @@ export default function MemberTable() {
     Utils.toggleGlobalLoading(true);
     Utils.apiCall(`${urls.crud}${id}`, {}, "delete")
       .then(() => {
-        setList([...list.filter((item) => item.id !== id)]);
+        setList([...list.filter((item) => item._id !== id)]);
       })
       .finally(() => Utils.toggleGlobalLoading(false));
   };
@@ -73,17 +80,17 @@ export default function MemberTable() {
     Utils.toggleGlobalLoading(true);
     Utils.apiCall(`${urls.crud}?ids=${ids.join(",")}`, {}, "delete")
       .then(() => {
-        setList([...list.filter((item) => !ids.includes(item.id))]);
+        setList([...list.filter((item) => !ids.includes(item._id))]);
       })
       .finally(() => Utils.toggleGlobalLoading(false));
   };
 
   const onChange = (data, id) => {
     if (!id) {
-      setList([{ ...data, key: data.id }, ...list]);
+      setList([{ ...data, key: data._id }, ...list]);
     } else {
-      const index = list.findIndex((item) => item.id === id);
-      data.key = data.id;
+      const index = list.findIndex((item) => item._id === id);
+      data.key = data._id;
       list[index] = data;
       setList([...list]);
     }
@@ -106,14 +113,16 @@ export default function MemberTable() {
           htmlType="button"
           icon={<DeleteOutlined />}
           size="small"
-          onClick={() => onDelete(record.id)}
+          onClick={() => onDelete(record._id)}
         />
       </div>
     </div>
   );
 
   const rowSelection = {
-    onChange: (ids) => {
+    onChange: (ids, selectedRows) => {
+      console.log("ids", ids);
+      console.log("selectedRows", selectedRows);
       setIds(ids);
     },
   };
@@ -122,6 +131,25 @@ export default function MemberTable() {
     <div>
       <Row style={{ marginBottom: "30px" }}>
         <Col span={12}>
+          <Row justify="start" align="middle">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => Dialog.toggle()}
+              style={{ marginRight: "1vw" }}
+            >
+              Thêm mới
+            </Button>
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+              disabled={!ids.length}
+              onClick={() => onBulkDelete(ids)}
+            >
+              Xoá chọn
+            </Button>
+          </Row>
           <Row justify="start" align="middle">
             <Text strong style={{ width: "4em", minWidth: "4em" }}>
               {" "}
@@ -134,10 +162,15 @@ export default function MemberTable() {
               />
             </Col>
           </Row>
-        </Col> 
+        </Col>
         <Col span={12} className="right">
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => Dialog.toggle()} style={{ marginRight: "1vw" }}>
-            Thêm mới
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => Dialog.toggle()}
+            style={{ marginRight: "1vw" }}
+          >
+            Import
           </Button>
           <Button
             type="primary"
@@ -146,7 +179,7 @@ export default function MemberTable() {
             disabled={!ids.length}
             onClick={() => onBulkDelete(ids)}
           >
-            Xoá chọn
+            Export
           </Button>
         </Col>
       </Row>
@@ -162,7 +195,11 @@ export default function MemberTable() {
         scroll={{ x: 1000 }}
         pagination={false}
       />
-      {/* <Pagination next={links.next} prev={links.previous} onChange={getList(true)} /> */}
+      <Pagination
+        next={links.next}
+        prev={links.previous}
+        onChange={getList(true)}
+      />
       <Dialog onChange={onChange} />
     </div>
   );

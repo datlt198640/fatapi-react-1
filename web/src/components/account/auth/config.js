@@ -13,10 +13,10 @@ const urlMap = {
             changePassword: "change-pwd"
         }
     },
-    staff: {
-        prefix: "account/staff",
+    user: {
+        prefix: "auth/users/",
         endpoints: {
-            profile: "profile"
+            profile: "me/"
         }
     },
     verif: {
@@ -31,7 +31,7 @@ const urlMap = {
 export const urls = Utils.prefixMapValues(urlMap.base);
 export const verifUrls = Utils.prefixMapValues(urlMap.verif);
 export const accountUrls = {
-    staff: Utils.prefixMapValues(urlMap.staff)
+    user: Utils.prefixMapValues(urlMap.user)
 };
 
 const headingTxt = "Profile";

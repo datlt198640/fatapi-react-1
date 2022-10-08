@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from user.router import user_router
 from auth.router import auth_router
+from utils.email import send_mail
 
 
 app = FastAPI()
@@ -27,4 +28,6 @@ app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    send_mail()

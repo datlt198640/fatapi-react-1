@@ -246,7 +246,7 @@ export default class Utils {
       url,
       headers: {
         FINGERPRINT: "",
-        Authorization: token ? `JWT ${token}` : undefined,
+        Authorization: token ? `Bearer ${token}` : undefined,
         "Content-Type": contentType,
       },
       data: this.convertParams(method, data),
@@ -281,8 +281,7 @@ export default class Utils {
     } catch (err) {
       if (err.response.status === 401) {
         const baseUrl = Utils.getApiBaseUrl();
-        const refreshUrl = `${baseUrl}account/staff/refresh/`;
-        const refreshCheckUrl = `${baseUrl}account/staff/refresh-check/`;
+        const refreshUrl = `${baseUrl}/auth/refresh/`;
         try {
           const refreshResponse = await Utils.request(refreshUrl, {}, "POST");
 
@@ -301,7 +300,7 @@ export default class Utils {
             return Promise.reject(err);
           }
         } catch (err) {
-          Utils.request(refreshCheckUrl).catch(() => {
+          Utils.request(refreshUrl).catch(() => {
             // Logout
             Utils.cleanAndMoveToLoginPage();
             return Promise.reject(emptyError);

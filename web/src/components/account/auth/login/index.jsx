@@ -29,7 +29,7 @@ export default function Login() {
 
     function onLogin(data) {
         const nextUrl = window.location.href.split("next=")[1] || "";
-        if (data.is_manager){
+        if (data.token){
             Utils.setStorage("auth", data);
             navigateTo(nextUrl);
         }else{

@@ -74,7 +74,7 @@ export default function Wrapper({ children }) {
             fontSize: "30px",
           }}
         >
-          RVS
+          RAY
         </div>
         {/* <Divider /> */}
         <Menu

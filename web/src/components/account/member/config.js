@@ -34,9 +34,10 @@ export const emptyRecord = {
 };
 
 export const formLabels = {
+    username: "Username",
     email: "Email",
     password: "Password",
-    fullName: "Full name",
+    full_name: "Full name",
     avatar: "Group",
     createdAt: "Gender",
     updatedAt: "Date of birth",
@@ -58,28 +59,19 @@ export const columns = [
     {
         key: "email",
         title: "Email",
-        dataIndex: "email"
+        dataIndex: "email",
+        width: 250
     },
     {
         key: "is_active",
         title: "Is active",
-        dataIndex: "is_active"
+        dataIndex: "is_active",
+        width: 100
     },
     {
         key: "is_admin",
         title: "Is admin",
-        dataIndex: "is_admin"
-    },
-    {
-        key: "created_at",
-        title: "Created at",
-        dataIndex: "created_at",
-        width: 100
-    },
-    {
-        key: "updated_at",
-        title: "Updated at",
-        dataIndex: "updated_at",
+        dataIndex: "is_admin",
         width: 100
     },
     {

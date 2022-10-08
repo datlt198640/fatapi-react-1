@@ -27,7 +27,7 @@ export default function Profile() {
         const accountType = authData.account_type;
         const profileUrl = accountUrls[accountType]?.profile;
         setProfileUrl(profileUrl);
-        Utils.apiCall(profileUrl).then((resp) => {
+        Utils.apiCall("/auth/users/me/").then((resp) => {
             setProfileData(resp.data);
         });
     }, []);
