@@ -9,9 +9,15 @@ from pydantic import EmailStr
 from starlette import status
 from .models import User
 from .schemas import UserIn
+from helpers import Utils
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class AfterCreateUser:
+    @staticmethod
+    async def send_email_noti(user: User, not_hash_password: str):
+        await Utils.send_email(user, not_hash_password)
 
 
 def verify_password(plain_password, hashed_password):
@@ -92,12 +98,15 @@ def to_str(c, col_map):
     return inner
 
 
-def create(payload: UserIn, user_collections):
-    user = user_collections.find_one({"username": payload.username.lower()})
+async def create(payload: UserIn, user_collections):
+    user = await user_collections.find_one({"username": payload.username.lower()})
+    print("user", user)
     is_exist_any_user = user_collections.count_documents({})
     if user:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail='Account already exist')
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
+        )
+    not_hash_password = payload.password
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True
@@ -108,4 +117,6 @@ def create(payload: UserIn, user_collections):
     new_user = User(**payload.dict())
     new_user_dict = jsonable_encoder(new_user)
     user_collections.insert_one(new_user_dict)
+    await AfterCreateUser.send_email_noti(new_user, not_hash_password)
     return new_user
+

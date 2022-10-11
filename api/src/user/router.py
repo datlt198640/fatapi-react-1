@@ -21,6 +21,7 @@ from .utils import (
 )
 from auth.service import get_current_active_user
 from pagination import paginate_response
+from .utils import AfterCreateUser
 
 
 user_collections = database.get_collection("users")
@@ -39,7 +40,8 @@ async def get_list_user(
     # if search:
     #     users = user_collections.find({ $username: { $search: search } }, {"password": 0, "_id": 1})
     # else:
-    users = user_collections.find({}, {"password": 0, "_id": 1})
+    users = user_collections.find({}, {"password": 0})
+    users.sort('_id', -1)
     async for user in users:
         result.append(UserOut(**user))
     return paginate_response(result, len(result), page_num, page_size)
@@ -64,6 +66,7 @@ async def create_user(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
         )
+    not_hash_password = payload.password
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True
@@ -74,6 +77,7 @@ async def create_user(
     new_user = User(**payload.dict())
     new_user_dict = jsonable_encoder(new_user)
     user_collections.insert_one(new_user_dict)
+    await AfterCreateUser.send_email_noti(new_user, not_hash_password)
     return new_user
 
 
@@ -159,5 +163,6 @@ async def import_users(file: UploadFile):
             "email": to_str_inner("email"),
             "password": to_str_inner("password"),
         }
-        result.append(create(UserIn(**data), user_collections))
+        user = await create(UserIn(**data), user_collections)
+        result.append(user)
     return result
