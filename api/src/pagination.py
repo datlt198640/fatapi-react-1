@@ -1,31 +1,3 @@
-# {
-#     "links": {
-#         "next": "null",
-#         "previous": "null"
-#     },
-#     "count": 3,
-#     "pages": 1,
-#     "page_size": 15,
-#     "extra": {},
-#     "items": [
-#         {
-#             "id": 3,
-#             "created_at": "2022-06-28T13:27:13.708274",
-#             "updated_at": "2022-06-28T13:27:13.708299",
-#             "rate": 1,
-#             "improves": [
-#                 "Đội ngũ hỗ trợ nhiệt tình",
-#                 "chuyên nghiệp (CV hợp tác bác sĩ",
-#                 "Sales tại viện)"
-#             ],
-#             "other": "",
-#             "staff": 2,
-#             "doctor": 2,
-#             "rater": "Doctor 2"
-#         }
-#     ]
-# }
-
 from fastapi import Response
 from math import ceil
 
@@ -33,7 +5,6 @@ from math import ceil
 def paginate_response(
     data, total_data_count: int, page_num: int = 1, page_size: int = 10
 ):
-
     extra = {}
     items = []
     if isinstance(data, dict):

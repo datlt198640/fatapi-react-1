@@ -31,7 +31,7 @@ export default function MemberForm({ data, onChange }) {
   const id = initialValues._id;
   const endPoint = id ? `${urls.crud}${id}` : urls.crud;
   const method = id ? "put" : "post";
-
+  console.log("method", method);
   const formAttrs = {
     username: {
       name: "username",
@@ -41,7 +41,6 @@ export default function MemberForm({ data, onChange }) {
     email: {
       name: "email",
       label: formLabels.email,
-      rules: [FormUtils.ruleRequired()],
     },
     fullName: {
       name: "full_name",
@@ -67,18 +66,22 @@ export default function MemberForm({ data, onChange }) {
           .catch(FormUtils.setFormErrors(form))
       }
     >
-      <Form.Item {...formAttrs.username}>
-        <Input />
-      </Form.Item>
+      {!id && (
+        <Form.Item {...formAttrs.username}>
+          <Input />
+        </Form.Item>
+      )}
       <Form.Item {...formAttrs.email}>
         <Input />
       </Form.Item>
       <Form.Item {...formAttrs.fullName}>
         <Input />
       </Form.Item>
-      <Form.Item {...formAttrs.password}>
-        <Input.Password />
-      </Form.Item>
+      {!id && (
+        <Form.Item {...formAttrs.password}>
+          <Input.Password />
+        </Form.Item>
+      )}
     </Form>
   );
 }

@@ -1,7 +1,6 @@
 import pyexcel
 from openpyxl import load_workbook
-
-from fastapi import Depends, HTTPException, APIRouter, UploadFile
+from fastapi import Depends, HTTPException, APIRouter, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 
 from starlette import status
@@ -22,7 +21,6 @@ from .utils import (
 )
 from auth.service import get_current_active_user
 from pagination import paginate_response
-from utils.email import send_mail
 
 
 user_collections = database.get_collection("users")
@@ -34,13 +32,16 @@ user_router = APIRouter(prefix="/api/v1/user")
 async def get_list_user(
     page_num: int = 1,
     page_size: int = 10,
+    search: str = "",
     current_user: UserOut = Depends(get_current_active_user),
 ) -> list:
     result = []
+    # if search:
+    #     users = user_collections.find({ $username: { $search: search } }, {"password": 0, "_id": 1})
+    # else:
     users = user_collections.find({}, {"password": 0, "_id": 1})
     async for user in users:
         result.append(UserOut(**user))
-    await send_mail()
     return paginate_response(result, len(result), page_num, page_size)
 
 
@@ -137,9 +138,7 @@ async def upload_image(
 
 
 @user_router.post("/import-user")
-async def import_users(
-    file: UploadFile, current_user: UserOut = Depends(get_current_active_user)
-):
+async def import_users(file: UploadFile):
     filename = file.filename
     extension = filename.split(".")[-1]
     content = await file.read()

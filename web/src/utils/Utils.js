@@ -1,6 +1,13 @@
-import { PROTOCOL, DOMAIN, API_PREFIX, LOCAL_STORAGE_PREFIX } from "utils/constants";
+import {
+  PROTOCOL,
+  DOMAIN,
+  API_PREFIX,
+  LOCAL_STORAGE_PREFIX,
+} from "utils/constants";
 import axios from "axios";
 import moment from "moment";
+import { saveAs } from 'file-saver';
+
 
 function removeElement(array, elem) {
   let index = array.indexOf(elem);
@@ -95,7 +102,8 @@ export default class Utils {
   static errorFormat(input) {
     if (!input) return [];
     if (typeof input === "string") return [input];
-    if (Array.isArray(input)) return input.filter((item) => item).map((item) => item.toString());
+    if (Array.isArray(input))
+      return input.filter((item) => item).map((item) => item.toString());
     return [];
   }
 
@@ -154,7 +162,7 @@ export default class Utils {
         for (let val of item) {
           if (val instanceof Blob) {
             return true;
-          }else{
+          } else {
             return false;
           }
         }
@@ -235,7 +243,12 @@ export default class Utils {
    * @param {string} method
    * @returns {Promise}
    */
-  static async request(url, params = {}, method = "get", blobResponseType = false) {
+  static async request(
+    url,
+    params = {},
+    method = "get",
+    blobResponseType = false
+  ) {
     const { data, "Content-Type": contentType } = Utils.fileInObject(params)
       ? Utils.getFormDataPayload(params)
       : Utils.getJsonPayload(params);
@@ -246,7 +259,7 @@ export default class Utils {
       url,
       headers: {
         FINGERPRINT: "",
-        Authorization: token ? `Bearer ${token}` : undefined,
+        Authorization: token ? `JWT ${token}` : undefined,
         "Content-Type": contentType,
       },
       data: this.convertParams(method, data),
@@ -270,7 +283,12 @@ export default class Utils {
    * @param {string} method
    * @returns {Promise}
    */
-  static async apiCall(url, params = {}, method = "get", blobResponseType = false) {
+  static async apiCall(
+    url,
+    params = {},
+    method = "get",
+    blobResponseType = false
+  ) {
     const emptyError = {
       response: {
         data: {},
@@ -335,7 +353,10 @@ export default class Utils {
    */
   static setStorage(key, value) {
     try {
-      localStorage.setItem(LOCAL_STORAGE_PREFIX + "_" + key, JSON.stringify(value));
+      localStorage.setItem(
+        LOCAL_STORAGE_PREFIX + "_" + key,
+        JSON.stringify(value)
+      );
     } catch (error) {
       console.log(error);
     }
@@ -362,7 +383,9 @@ export default class Utils {
    */
   static getStorageObj(key) {
     try {
-      const value = this.parseJson(localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key));
+      const value = this.parseJson(
+        localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key)
+      );
       if (value && typeof value === "object") {
         return value;
       }
@@ -380,7 +403,9 @@ export default class Utils {
    */
   static getStorageStr(key) {
     try {
-      const value = this.parseJson(localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key));
+      const value = this.parseJson(
+        localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key)
+      );
       if (!value || typeof value === "object") {
         return "";
       }
@@ -451,7 +476,7 @@ export default class Utils {
   static logout(history) {
     return () => {
       const baseUrl = Utils.getApiBaseUrl();
-      const logoutUrl = `${baseUrl}auth/logout/`;
+      const logoutUrl = `${baseUrl}/auth/logout/`;
       Utils.toggleGlobalLoading();
       const payload = {
         firebase_token: "",
@@ -677,4 +702,23 @@ export default class Utils {
     document.body.appendChild(link);
     link.click();
   }
+
+  static handleDownloadLink = (url) => {
+    try {
+      Utils.apiCall(url, {}, "get", true)
+        .then((response) => {
+          console.log("response", response);
+          // const dirtyFileName = response.headers["content-disposition"];
+          // const regex =
+          //   /filename[^;=\n]*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/;
+          const fileName = "list-user.xlsx";
+          const blob = new Blob([response.data]);
+          saveAs(blob, fileName);
+        })
+        .finally(() => Utils.toggleGlobalLoading(false));
+      return true;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
 }

@@ -50,10 +50,13 @@ def download_excel(queryset):
             ws.cell(row=row, column=column).value = value
 
     file_name = "list-user.xlsx"
-    response = Response(save_virtual_workbook(wb), headers={
-        "Content-Type": "application/ms-excel",
-        "Content-Disposition": f"attachment; filename={file_name}",
-    })
+    response = Response(
+        save_virtual_workbook(wb),
+        headers={
+            "Content-Disposition": f"attachment; filename={file_name}",
+            "Content-Type": "application/ms-excel",
+        },
+    )
 
     return response
 
@@ -92,9 +95,9 @@ def to_str(c, col_map):
 def create(payload: UserIn, user_collections):
     user = user_collections.find_one({"username": payload.username.lower()})
     is_exist_any_user = user_collections.count_documents({})
-    # if user:
-    #     raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-    #                         detail='Account already exist')
+    if user:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail='Account already exist')
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True

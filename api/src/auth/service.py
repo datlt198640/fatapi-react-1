@@ -1,3 +1,4 @@
+from base64 import b64decode
 import jwt
 from fastapi import Depends, HTTPException, status, Request
 from user.models import User
@@ -28,16 +29,21 @@ async def get_current_user(request: Request):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+        headers={"WWW-Authenticate": "JWT"},
     )
-    try:
-        token = get_token_from_header(request)
-        token_signature = get_token_signature(token)
-        jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_signature": False})
-    except:
-        raise credentials_exception
+    token = get_token_from_header(request)
+    token_signature = get_token_signature(token)
     user = await user_collections.find_one({"token_signature": token_signature})
-    if user is None:
+    if not user:
+        raise credentials_exception
+    try:
+        jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=["HS256"],
+            options={"verify_signature": False, "verify_exp": True},
+        )
+    except jwt.ExpiredSignatureError:
         raise credentials_exception
     return User(**user)
 

@@ -20,7 +20,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
+                headers={"WWW-Authenticate": "JWT"},
             )
         response = await call_next(request)
         return response

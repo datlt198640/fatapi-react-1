@@ -1,12 +1,12 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { Row, Col, Button, Table, Typography } from "antd";
+import { Row, Col, Button, Table, Typography, Upload } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  FileExcelFilled,
-  EyeOutlined,
+  ImportOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import Pagination, { defaultLinks } from "utils/components/table/Pagination";
 import SearchInput from "utils/components/table/SearchInput";
@@ -21,6 +21,27 @@ export default function MemberTable() {
   const [list, setList] = useState([]);
   const [ids, setIds] = useState([]);
   const [links, setLinks] = useState(defaultLinks);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const props = {
+    multiple: false,
+    disableUpload: true,
+    showUploadList: false,
+    onChange({ file }) {
+      console.log("file", file);
+      const formData = new FormData();
+      formData.append("file", file.originFileObj);
+      Utils.apiCall(
+        "http://0.0.0.0:8000/api/v1/user/import-user/",
+        formData,
+        "post"
+      )
+        .then((response) => {
+          console.log("response", response);
+        })
+        .finally(() => Utils.toggleGlobalLoading(false));
+    },
+  };
 
   const convertBoolVal = (data) => {
     return data.map((item) => {
@@ -96,6 +117,19 @@ export default function MemberTable() {
     }
   };
 
+  const onExport = async () => {
+    setIsExporting(true);
+    try {
+      await Utils.handleDownloadLink(
+        "http://0.0.0.0:8000/api/v1/user/download-all/"
+      );
+    } catch (e) {
+      console.error(e);
+    }
+
+    setIsExporting(false);
+  };
+
   columns[columns.length - 1].render = (_text, record) => (
     <div>
       <div style={{ marginBottom: 7 }}>
@@ -104,7 +138,7 @@ export default function MemberTable() {
           htmlType="button"
           icon={<EditOutlined />}
           size="small"
-          onClick={() => Dialog.toggle(true, record.id)}
+          onClick={() => Dialog.toggle(true, record._id)}
         />
         &nbsp;&nbsp;
         <Button
@@ -121,8 +155,6 @@ export default function MemberTable() {
 
   const rowSelection = {
     onChange: (ids, selectedRows) => {
-      console.log("ids", ids);
-      console.log("selectedRows", selectedRows);
       setIds(ids);
     },
   };
@@ -131,14 +163,14 @@ export default function MemberTable() {
     <div>
       <Row style={{ marginBottom: "30px" }}>
         <Col span={12}>
-          <Row justify="start" align="middle">
+          {/* <Row justify="start" align="middle" style={{ marginBottom: 10 }} >
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => Dialog.toggle()}
               style={{ marginRight: "1vw" }}
             >
-              Thêm mới
+              Add
             </Button>
             <Button
               type="primary"
@@ -147,9 +179,9 @@ export default function MemberTable() {
               disabled={!ids.length}
               onClick={() => onBulkDelete(ids)}
             >
-              Xoá chọn
+              Delete
             </Button>
-          </Row>
+          </Row> */}
           <Row justify="start" align="middle">
             <Text strong style={{ width: "4em", minWidth: "4em" }}>
               {" "}
@@ -158,7 +190,7 @@ export default function MemberTable() {
             <Col span={19}>
               <SearchInput
                 onChange={searchList}
-                placeHolder="Search for member's name, email, phone number, and email"
+                placeHolder="Search for member's full name, phone number, and email"
               />
             </Col>
           </Row>
@@ -170,14 +202,21 @@ export default function MemberTable() {
             onClick={() => Dialog.toggle()}
             style={{ marginRight: "1vw" }}
           >
-            Import
+            Add
           </Button>
+          <Upload {...props}>
+            <Button
+              type="primary"
+              icon={<ImportOutlined />}
+              style={{ marginRight: "1vw" }}
+            >
+              Import
+            </Button>
+          </Upload>
           <Button
             type="primary"
-            danger
-            icon={<DeleteOutlined />}
-            disabled={!ids.length}
-            onClick={() => onBulkDelete(ids)}
+            icon={<DownloadOutlined />}
+            onClick={() => onExport()}
           >
             Export
           </Button>

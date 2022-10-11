@@ -25,8 +25,6 @@ class UserBase(BaseModel):
     full_name: str | None = None
 
     avatar: str | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
     is_active: bool | None = None
     is_admin: bool | None = None
 
@@ -41,8 +39,6 @@ class UserIn(UserBase):
                 "email": "datlt198640@example.com",
                 "full_name": "Le Thanh Dat",
                 "avatar": "datlt198640",
-                "created_at": datetime.now(),
-                "updated_at": datetime.now(),
                 "is_active": True,
                 "is_admin": True,
                 "password": "datlt198640"

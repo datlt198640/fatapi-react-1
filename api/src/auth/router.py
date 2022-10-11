@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, APIRouter, HTTPException, status, Request
 
 from starlette import status
@@ -13,12 +13,12 @@ from .schemas import Token, Login, ChangePasswordSchema
 from .service import verify_password, get_current_active_user
 from .utils import create_token, get_token_signature, get_token_from_header, refresh
 
-
 user_collections = database.get_collection("users")
 
 auth_router = APIRouter(prefix="/api/v1/auth")
 
-TOKEN_EXPIRE_MINUTES = 30
+TOKEN_EXPIRE_SECONDS = 60 * 15
+REFRESH_EXPIRE_SECONDS = 60 * 2400
 
 
 @auth_router.post("/login", response_model=Token)
@@ -34,16 +34,23 @@ async def login(payload: Login):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"WWW-Authenticate": "JWT"},
         )
-    token_expires = timedelta(minutes=TOKEN_EXPIRE_MINUTES)
+    token_expires = timedelta(seconds=TOKEN_EXPIRE_SECONDS)
     token = create_token(data={"sub": user.username}, expires_delta=token_expires)
-
+    refresh_token_expires = datetime.now(tz=timezone.utc) + timedelta(
+        seconds=REFRESH_EXPIRE_SECONDS
+    )
     await user_collections.update_one(
         {"username": user.username},
-        {"$set": {"token_signature": get_token_signature(token)}},
+        {
+            "$set": {
+                "token_signature": get_token_signature(token),
+                "token_refresh_limit": refresh_token_expires,
+            }
+        },
     )
-    return {"token": token, "token_type": "bearer"}
+    return {"token": token, "token_type": "JWT"}
 
 
 @auth_router.post("/logout")
@@ -54,12 +61,13 @@ async def logout(current_user: UserOut = Depends(get_current_active_user)):
     return {}
 
 
-@auth_router.post("/refresh-token")
+@auth_router.post("/refresh")
 async def refresh_token(request: Request):
     token = get_token_from_header(request)
     token_signature = get_token_signature(token)
-    success, result = refresh(token_signature)
-    return {"token": result} if success else {}
+    success, result = await refresh(token_signature)
+    print("is_success", success)
+    return {"token": result, "token_type": "JWT"} if success else {}
 
 
 @auth_router.post("/change-pwd")
@@ -68,7 +76,10 @@ async def change_password(
     current_user: User = Depends(get_current_active_user),
 ):
     old_password = payload.old_password
-    new_password = payload.new_password
+    password = payload.password
+    password_confirm = payload.password_confirm
+    if password != password_confirm:
+        return {"password": "Password does not match"}
 
     if (
         not old_password
@@ -76,7 +87,7 @@ async def change_password(
     ):
         return {"old_password": "Incorrect current password"}
 
-    hashed_password = get_password_hash(new_password)
+    hashed_password = get_password_hash(password_confirm)
 
     await user_collections.update_one(
         {"username": current_user.username}, {"$set": {"password": hashed_password}}

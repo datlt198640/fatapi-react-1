@@ -16,4 +16,5 @@ class Login(BaseModel):
 
 class ChangePasswordSchema(BaseModel):
     old_password: str
-    new_password: str
+    password: str
+    password_confirm: str

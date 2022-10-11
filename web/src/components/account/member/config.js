@@ -20,7 +20,7 @@ export const messages = {
 };
 
 export const emptyRecord = {
-    id: 0,
+    _id: "",
     phone_number: "",
     email: "",
     password: "",
