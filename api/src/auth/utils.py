@@ -84,7 +84,6 @@ async def refresh(token_signature: str) -> str:
                 }
             },
         )
-        print("update successfully=")
         return (True, token)
     except Exception as e:
         message = repr(e)

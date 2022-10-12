@@ -7,9 +7,16 @@ const urlMap = {
       crud: "",
     },
   },
+  multiple: {
+    prefix: "user-delete",
+    endpoints: {
+      deleteList: "",
+    },
+  },
 };
 
 export const urls = Utils.prefixMapValues(urlMap.base);
+export const urlMultiple = Utils.prefixMapValues(urlMap.multiple);
 
 const headingTxt = "Member ";
 export const messages = {

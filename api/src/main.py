@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
-from user.router import user_router
+from user.router import user_router, remove_user_router
 from auth.router import auth_router
 
 
@@ -9,6 +9,7 @@ app = FastAPI()
 
 app.include_router(user_router)
 app.include_router(auth_router)
+app.include_router(remove_user_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 origins = [

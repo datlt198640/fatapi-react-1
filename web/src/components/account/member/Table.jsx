@@ -12,7 +12,7 @@ import Pagination, { defaultLinks } from "utils/components/table/Pagination";
 import SearchInput from "utils/components/table/SearchInput";
 import Utils from "utils/Utils";
 import Dialog from "./dialog";
-import { urls, columns, messages } from "./config";
+import { urls, columns, messages, urlMultiple } from "./config";
 
 const { Text } = Typography;
 
@@ -22,6 +22,7 @@ export default function MemberTable() {
   const [ids, setIds] = useState([]);
   const [links, setLinks] = useState(defaultLinks);
   const [isExporting, setIsExporting] = useState(false);
+  const [rowUID, setRowUID] = useState([]);
 
   const props = {
     multiple: false,
@@ -93,14 +94,14 @@ export default function MemberTable() {
       .finally(() => Utils.toggleGlobalLoading(false));
   };
 
-  const onBulkDelete = (ids) => {
+  const onBulkDelete = (rowUID) => {
     const r = window.confirm(messages.deleteMultiple);
     if (!r) return;
 
     Utils.toggleGlobalLoading(true);
-    Utils.apiCall(`${urls.crud}?ids=${ids.join(",")}`, {}, "delete")
+    Utils.apiCall(`${urlMultiple.deleteList}${rowUID.join(",")}`, {}, "delete")
       .then(() => {
-        setList([...list.filter((item) => !ids.includes(item._id))]);
+        setList([...list.filter((item) => !rowUID.includes(item._id))]);
       })
       .finally(() => Utils.toggleGlobalLoading(false));
   };
@@ -155,7 +156,10 @@ export default function MemberTable() {
 
   const rowSelection = {
     onChange: (ids, selectedRows) => {
+      const uids = [];
       setIds(ids);
+      selectedRows.map((selectedRow) => uids.push(selectedRow._id));
+      setRowUID(uids);
     },
   };
 
@@ -163,7 +167,7 @@ export default function MemberTable() {
     <div>
       <Row style={{ marginBottom: "30px" }}>
         <Col span={12}>
-          {/* <Row justify="start" align="middle" style={{ marginBottom: 10 }} >
+          <Row justify="start" align="middle" style={{ marginBottom: 10 }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -177,11 +181,11 @@ export default function MemberTable() {
               danger
               icon={<DeleteOutlined />}
               disabled={!ids.length}
-              onClick={() => onBulkDelete(ids)}
+              onClick={() => onBulkDelete(rowUID)}
             >
               Delete
             </Button>
-          </Row> */}
+          </Row>
           <Row justify="start" align="middle">
             <Text strong style={{ width: "4em", minWidth: "4em" }}>
               {" "}

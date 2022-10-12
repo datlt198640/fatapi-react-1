@@ -22,9 +22,9 @@ function App() {
             <PrivateRoute path="/" component={Profile} exact />
             <Route path="/login" component={Login} exact />
 
-            {authData.is_admin && (
-              <PrivateRoute path="/user" component={Member} exact />
-            )}
+            {/* {authData.is_admin && ( */}
+            <PrivateRoute path="/user" component={Member} exact />
+            {/* )} */}
 
             <Route component={NotMatch} />
           </Switch>

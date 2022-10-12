@@ -66,7 +66,6 @@ async def refresh_token(request: Request):
     token = get_token_from_header(request)
     token_signature = get_token_signature(token)
     success, result = await refresh(token_signature)
-    print("is_success", success)
     return {"token": result, "token_type": "JWT"} if success else {}
 
 

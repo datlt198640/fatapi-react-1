@@ -1,6 +1,9 @@
+from json import JSONDecodeError
+import time
 import pyexcel
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, File
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from starlette import status
 from pydantic import EmailStr
@@ -17,15 +20,18 @@ from .utils import (
     get_cell_data,
     to_str,
     create,
+    import_user
 )
-from auth.service import get_current_active_user
+from auth.service import get_current_active_admin_user
 from pagination import paginate_response
 from .utils import AfterCreateUser
-
+from celery.result import AsyncResult
+from worker import celery
 
 user_collections = database.get_collection("users")
 
 user_router = APIRouter(prefix="/api/v1/user")
+remove_user_router = APIRouter(prefix="/api/v1/user-delete")
 
 
 @user_router.get("/")
@@ -33,13 +39,9 @@ async def get_list_user(
     page_num: int = 1,
     page_size: int = 10,
     search: str = "",
-    current_user: UserOut = Depends(get_current_active_user),
+    current_user: UserOut = Depends(get_current_active_admin_user),
 ) -> list:
     result = []
-    # print("is_admin", is_admin)
-    # if search:
-    #     users = user_collections.find({ $username: { $search: search } }, {"password": 0, "_id": 1})
-    # else:
     users = user_collections.find({}, {"password": 0})
     users.sort("_id", -1)
     async for user in users:
@@ -49,7 +51,7 @@ async def get_list_user(
 
 @user_router.get("/{id}", response_model=UserOut)
 async def retrieve_user_by_id(
-    id: str, current_user: UserOut = Depends(get_current_active_user)
+    id: str, current_user: UserOut = Depends(get_current_active_admin_user)
 ) -> User:
     user = await user_collections.find_one({"_id": id})
     return user
@@ -57,7 +59,8 @@ async def retrieve_user_by_id(
 
 @user_router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 async def create_user(
-    payload: UserIn, current_user: UserOut = Depends(get_current_active_user)
+    payload: UserIn,
+    current_admin_user: UserOut = Depends(get_current_active_admin_user),
 ):
     user = await user_collections.find_one(
         {
@@ -75,13 +78,10 @@ async def create_user(
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True
-    print("payload", payload)
 
     new_user = User(**payload.dict())
-    print("new_user", new_user)
 
     new_user_dict = jsonable_encoder(new_user)
-    print("new_user_dict", new_user_dict)
     user_collections.insert_one(new_user_dict)
     await AfterCreateUser.send_email_noti(new_user, not_hash_password)
     return new_user
@@ -89,7 +89,7 @@ async def create_user(
 
 @user_router.put("/{id}", response_model=UserOut)
 async def update_user(
-    id: str, data: dict, current_user: UserOut = Depends(get_current_active_user)
+    id: str, data: dict, current_user: UserOut = Depends(get_current_active_admin_user)
 ) -> User:
     update_item_encoded = jsonable_encoder(data)
     await user_collections.update_one({"_id": id}, {"$set": update_item_encoded})
@@ -99,7 +99,7 @@ async def update_user(
 
 @user_router.delete("/{id}", status_code=204)
 async def remove_user(
-    id: str, current_user: UserOut = Depends(get_current_active_user)
+    id: str, current_user: UserOut = Depends(get_current_active_admin_user)
 ) -> None:
     user = await user_collections.find_one({"_id": id})
     if user:
@@ -108,32 +108,34 @@ async def remove_user(
         raise HTTPException(status_code=404, detail=f"No user with id={id}.")
 
 
-@user_router.delete("/delete/{ids}", status_code=204)
-async def remove_list_user(
-    ids: str = "", current_user: UserOut = Depends(get_current_active_user)
-) -> None:
+@remove_user_router.delete("/{ids}", status_code=204)
+async def remove_list_user(ids: str = "") -> None:
     users_id = [user_id.strip() for user_id in ids.split(",")]
     for user_id in users_id:
         user = await user_collections.find_one({"_id": user_id})
         if user:
             user_collections.delete_one({"_id": user_id})
         else:
-            raise HTTPException(status_code=404, detail=f"No user with id={user_id}.")
+            raise HTTPException(status_code=404, detail=f"No usesr with id={user_id}.")
 
 
 @user_router.get("/download-all/")
-async def export_users(current_user: UserOut = Depends(get_current_active_user)):
-    # current_user = UserService.get_current_user()
+async def export_users():
     result = []
     users = user_collections.find({}, {"password": 0, "_id": 1})
     async for user in users:
-        result.append(UserOut(**user))
-    return download_excel(result)
+        result.append(jsonable_encoder(UserOut(**user)))
+    task = download_excel.delay(result)
+    res = AsyncResult(task.id)
+    while not res.ready():
+        time.sleep(0.1)
+    output = res.get()
+    return {"result": output}
 
 
 @user_router.post("/upload-image")
 async def upload_image(
-    file: UploadFile, current_user: UserOut = Depends(get_current_active_user)
+    file: UploadFile, current_user: UserOut = Depends(get_current_active_admin_user)
 ):
     filename = file.filename
     extension = filename.split(".")[-1]
@@ -148,27 +150,12 @@ async def upload_image(
 
 
 @user_router.post("/import-user")
-async def import_users(file: UploadFile):
+async def import_users(file: UploadFile, current_user: UserOut = Depends(get_current_active_admin_user)):
     filename = file.filename
     extension = filename.split(".")[-1]
     content = await file.read()
     book = pyexcel.get_book(file_type=extension, file_content=content)
     sheet = book.sheet_by_index(0)
-
-    col_map = get_column_map()
     result = []
-    start_row = 1
-    for index, row in enumerate(sheet):
-        if index < start_row:
-            continue
-        c = get_cell_data(row)
-        to_str_inner = to_str(c, col_map)
-        data = {
-            "username": to_str_inner("username") or None,
-            "full_name": to_str_inner("full_name"),
-            "email": to_str_inner("email"),
-            "password": to_str_inner("password"),
-        }
-        user = await create(UserIn(**data), user_collections)
-        result.append(user)
+    await import_user(sheet, user_collections, result)
     return result

@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from fastapi import Response, HTTPException
@@ -10,9 +11,11 @@ from starlette import status
 from .models import User
 from .schemas import UserIn
 from helpers import Utils
+from worker import celery
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 class AfterCreateUser:
     @staticmethod
@@ -28,7 +31,8 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def download_excel(queryset):
+@celery.task(name="download_excel")
+def download_excel(queryset: list):
     wb = Workbook()
     ws = wb.active
 
@@ -37,10 +41,8 @@ def download_excel(queryset):
         "Username",
         "Email",
         "Fullname",
-        # "Is active",
-        # "Is admin",
-        # "Created at",
-        # "Updated at",
+        "Is admin",
+        "Is active",
     ]
 
     for column, heading in enumerate(headings, 1):
@@ -48,9 +50,11 @@ def download_excel(queryset):
     for row, user in enumerate(queryset, 2):
         values = [
             row - 1,
-            user.username,
-            user.email,
-            user.full_name,
+            user["username"],
+            user["email"],
+            user["full_name"],
+            "admin" if user["is_admin"] else "normal",
+            "active" if user["is_active"] else "inactive",
         ]
         for column, value in enumerate(values, 1):
             ws.cell(row=row, column=column).value = value
@@ -66,6 +70,26 @@ def download_excel(queryset):
 
     return response
 
+@celery.task(name="import_user")
+async def import_user(sheet, user_collections, result: list):
+    col_map = get_column_map()
+    start_row = 1
+    for index, row in enumerate(sheet):
+        if index < start_row:
+            continue
+        c = get_cell_data(row)
+        to_str_inner = to_str(c, col_map)
+        data = {
+            "username": to_str_inner("username") or None,
+            "full_name": to_str_inner("full_name"),
+            "email": to_str_inner("email"),
+            "password": to_str_inner("password"),
+            "is_admin": True if to_str_inner("is_admin") == "admin" else False,
+        }
+        user = await create(UserIn(**data), user_collections)
+        result.append(user)
+    return result
+
 
 def file_dest(filename):
     ext = filename.split(".")[-1]
@@ -78,6 +102,7 @@ def get_column_map():
         "email": 2,
         "full_name": 3,
         "password": 4,
+        "is_admin": 5,
     }
 
 
@@ -118,4 +143,3 @@ async def create(payload: UserIn, user_collections):
     user_collections.insert_one(new_user_dict)
     await AfterCreateUser.send_email_noti(new_user, not_hash_password)
     return new_user
-
