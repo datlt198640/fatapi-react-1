@@ -9,14 +9,17 @@ export default function UpdateProfileForm({ data, profileUrl, onChange }) {
   const formAttrs = {
     fullname: {
       name: "full_name",
-      label: "Họ và tên",
+      label: "Full name",
+      rules: [FormUtils.ruleRequired()],
+    },
+    email: {
+      name: "email",
+      label: "Email",
       rules: [FormUtils.ruleRequired()],
     },
   };
-  const userID = data._id
-  const updateProfileURL = `/user/${userID}`
-
-  console.log("updateProfileURL", updateProfileURL)
+  const userID = data._id;
+  const updateProfileURL = `/user/${userID}`;
 
   return (
     <Form
@@ -33,6 +36,9 @@ export default function UpdateProfileForm({ data, profileUrl, onChange }) {
     >
       <Form.Item {...formAttrs.fullname}>
         <Input autoFocus />
+      </Form.Item>
+      <Form.Item {...formAttrs.email}>
+        <Input />
       </Form.Item>
     </Form>
   );

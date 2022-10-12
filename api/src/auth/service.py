@@ -54,6 +54,12 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+def get_current_active_admin_user(current_user: User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=400, detail="Permission denied")
+    return current_user
+
+
 async def authenticate_user(user_collections, username: str, password: str):
     user = await user_collections.find_one({"username": username})
     if not user:

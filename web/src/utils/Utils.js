@@ -2,12 +2,10 @@ import {
   PROTOCOL,
   DOMAIN,
   API_PREFIX,
-  LOCAL_STORAGE_PREFIX,
 } from "utils/constants";
 import axios from "axios";
 import moment from "moment";
-import { saveAs } from 'file-saver';
-
+import { saveAs } from "file-saver";
 
 function removeElement(array, elem) {
   let index = array.indexOf(elem);
@@ -353,10 +351,7 @@ export default class Utils {
    */
   static setStorage(key, value) {
     try {
-      localStorage.setItem(
-        LOCAL_STORAGE_PREFIX + "_" + key,
-        JSON.stringify(value)
-      );
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.log(error);
     }
@@ -383,9 +378,7 @@ export default class Utils {
    */
   static getStorageObj(key) {
     try {
-      const value = this.parseJson(
-        localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key)
-      );
+      const value = this.parseJson(localStorage.getItem(key));
       if (value && typeof value === "object") {
         return value;
       }
@@ -403,9 +396,7 @@ export default class Utils {
    */
   static getStorageStr(key) {
     try {
-      const value = this.parseJson(
-        localStorage.getItem(LOCAL_STORAGE_PREFIX + "_" + key)
-      );
+      const value = this.parseJson(localStorage.getItem(key));
       if (!value || typeof value === "object") {
         return "";
       }
@@ -465,7 +456,7 @@ export default class Utils {
    * @returns {void}
    */
   static removeStorage(key) {
-    localStorage.removeItem(LOCAL_STORAGE_PREFIX + "_" + key);
+    localStorage.removeItem(key);
   }
 
   /**

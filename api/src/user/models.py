@@ -5,5 +5,5 @@ from .schemas import UserOut
 
 class User(UserOut):
     password: str = Field(...)
-    token_signature : str | None = None    
-    token_refresh_limit : datetime | None = None,
+    token_signature: str | None = None
+    token_refresh_limit: datetime | None = datetime.now()

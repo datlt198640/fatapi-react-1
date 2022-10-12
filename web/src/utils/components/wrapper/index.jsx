@@ -90,12 +90,14 @@ export default function Wrapper({ children }) {
               <MenuLabel collapsed={collapsed} label="Profile" />
             </NavLink>
           </Menu.Item>
-          <Menu.Item key="/member" style={{ margin: "30px auto" }}>
-            <NavLink to="/member">
-              <TeamOutlined />
-              <MenuLabel collapsed={collapsed} label="Nhân viên" />
-            </NavLink>
-          </Menu.Item>
+          {Utils.getStorageObj("auth").is_admin && (
+            <Menu.Item key="/user" style={{ margin: "30px auto" }}>
+              <NavLink to="/user">
+                <TeamOutlined />
+                <MenuLabel collapsed={collapsed} label="User" />
+              </NavLink>
+            </Menu.Item>
+          )}
         </Menu>
       </Sider>
       <Layout className="site-layout">
@@ -119,7 +121,7 @@ export default function Wrapper({ children }) {
                 cancelText="No"
               >
                 <span className="pointer">
-                  <span>{Utils.getStorageObj("auth").fullname}</span>
+                  <span>{Utils.getStorageObj("auth").full_name}</span>
                   &nbsp;&nbsp;
                   <LogoutOutlined />
                 </span>

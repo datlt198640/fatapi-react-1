@@ -28,7 +28,6 @@ export default function MemberTable() {
     disableUpload: true,
     showUploadList: false,
     onChange({ file }) {
-      console.log("file", file);
       const formData = new FormData();
       formData.append("file", file.originFileObj);
       Utils.apiCall(
@@ -115,6 +114,7 @@ export default function MemberTable() {
       list[index] = data;
       setList([...list]);
     }
+    getList()();
   };
 
   const onExport = async () => {

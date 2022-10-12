@@ -50,7 +50,7 @@ async def login(payload: Login):
             }
         },
     )
-    return {"token": token, "token_type": "JWT"}
+    return {"token": token, "token_type": "JWT", "is_admin": user.is_admin}
 
 
 @auth_router.post("/logout")

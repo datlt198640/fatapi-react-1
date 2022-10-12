@@ -1,4 +1,5 @@
 import uuid
+from .models import User
 from fastapi import HTTPException, UploadFile
 from starlette import status
 from .utils import file_dest
@@ -23,8 +24,8 @@ class UserService:
         pass
 
     @staticmethod
-    async def get_current_user():
-        pass
+    async def is_admin(user: User):
+        return bool(user.is_admin)
 
     @staticmethod
     async def get_download_list_user(user_collections):

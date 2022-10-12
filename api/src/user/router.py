@@ -1,5 +1,4 @@
 import pyexcel
-from openpyxl import load_workbook
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 
@@ -37,11 +36,12 @@ async def get_list_user(
     current_user: UserOut = Depends(get_current_active_user),
 ) -> list:
     result = []
+    # print("is_admin", is_admin)
     # if search:
     #     users = user_collections.find({ $username: { $search: search } }, {"password": 0, "_id": 1})
     # else:
     users = user_collections.find({}, {"password": 0})
-    users.sort('_id', -1)
+    users.sort("_id", -1)
     async for user in users:
         result.append(UserOut(**user))
     return paginate_response(result, len(result), page_num, page_size)
@@ -59,9 +59,14 @@ async def retrieve_user_by_id(
 async def create_user(
     payload: UserIn, current_user: UserOut = Depends(get_current_active_user)
 ):
-    # Check if user already exist
-    user = await user_collections.find_one({"username": payload.username.lower()})
-    is_exist_any_user = user_collections.count_documents({})
+    user = await user_collections.find_one(
+        {
+            "$or": [
+                {"username": payload.username.lower()},
+                {"email": payload.email.lower()},
+            ]
+        },
+    )
     if user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
@@ -70,12 +75,13 @@ async def create_user(
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True
-    if is_exist_any_user:
-        payload.is_admin = False
-    else:
-        payload.is_admin = True
+    print("payload", payload)
+
     new_user = User(**payload.dict())
+    print("new_user", new_user)
+
     new_user_dict = jsonable_encoder(new_user)
+    print("new_user_dict", new_user_dict)
     user_collections.insert_one(new_user_dict)
     await AfterCreateUser.send_email_noti(new_user, not_hash_password)
     return new_user

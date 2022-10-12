@@ -100,7 +100,6 @@ def to_str(c, col_map):
 
 async def create(payload: UserIn, user_collections):
     user = await user_collections.find_one({"username": payload.username.lower()})
-    print("user", user)
     is_exist_any_user = user_collections.count_documents({})
     if user:
         raise HTTPException(
