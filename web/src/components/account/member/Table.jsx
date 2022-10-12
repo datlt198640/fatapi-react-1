@@ -1,6 +1,14 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { Row, Col, Button, Table, Typography, Upload } from "antd";
+import {
+  Row,
+  Col,
+  Button,
+  Table,
+  Typography,
+  Upload,
+  notification,
+} from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
@@ -9,20 +17,24 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 import Pagination, { defaultLinks } from "utils/components/table/Pagination";
-import SearchInput from "utils/components/table/SearchInput";
 import Utils from "utils/Utils";
 import Dialog from "./dialog";
 import { urls, columns, messages, urlMultiple } from "./config";
-
-const { Text } = Typography;
 
 export default function MemberTable() {
   const [init, setInit] = useState(true);
   const [list, setList] = useState([]);
   const [ids, setIds] = useState([]);
   const [links, setLinks] = useState(defaultLinks);
-  const [isExporting, setIsExporting] = useState(false);
   const [rowUID, setRowUID] = useState([]);
+
+  const showNotification = () => {
+    notification["error"]({
+      message: "Error",
+      description: "Account already exist",
+      duration: 8,
+    });
+  };
 
   const props = {
     multiple: false,
@@ -31,14 +43,14 @@ export default function MemberTable() {
     onChange({ file }) {
       const formData = new FormData();
       formData.append("file", file.originFileObj);
+      Utils.toggleGlobalLoading(true);
       Utils.apiCall(
         "http://0.0.0.0:8000/api/v1/user/import-user/",
         formData,
         "post"
       )
-        .then((response) => {
-          console.log("response", response);
-        })
+        .then((response) => {})
+        // .catch((error) => showNotification())
         .finally(() => Utils.toggleGlobalLoading(false));
     },
   };
@@ -73,10 +85,6 @@ export default function MemberTable() {
           showLoading && Utils.toggleGlobalLoading(false);
         });
     };
-
-  const searchList = (keyword) => {
-    getList(true)("", keyword ? { search: keyword } : {});
-  };
 
   useEffect(() => {
     getList()();
@@ -119,7 +127,7 @@ export default function MemberTable() {
   };
 
   const onExport = async () => {
-    setIsExporting(true);
+    Utils.toggleGlobalLoading(true);
     try {
       await Utils.handleDownloadLink(
         "http://0.0.0.0:8000/api/v1/user/download-all/"
@@ -128,7 +136,7 @@ export default function MemberTable() {
       console.error(e);
     }
 
-    setIsExporting(false);
+    Utils.toggleGlobalLoading(false);
   };
 
   columns[columns.length - 1].render = (_text, record) => (
@@ -186,28 +194,8 @@ export default function MemberTable() {
               Delete
             </Button>
           </Row>
-          <Row justify="start" align="middle">
-            <Text strong style={{ width: "4em", minWidth: "4em" }}>
-              {" "}
-              Search:{" "}
-            </Text>
-            <Col span={19}>
-              <SearchInput
-                onChange={searchList}
-                placeHolder="Search for member's full name, phone number, and email"
-              />
-            </Col>
-          </Row>
         </Col>
         <Col span={12} className="right">
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => Dialog.toggle()}
-            style={{ marginRight: "1vw" }}
-          >
-            Add
-          </Button>
           <Upload {...props}>
             <Button
               type="primary"

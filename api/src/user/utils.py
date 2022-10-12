@@ -11,7 +11,6 @@ from starlette import status
 from .models import User
 from .schemas import UserIn
 from helpers import Utils
-from worker import celery
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,7 +30,6 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-@celery.task(name="download_excel")
 def download_excel(queryset: list):
     wb = Workbook()
     ws = wb.active
@@ -70,7 +68,7 @@ def download_excel(queryset: list):
 
     return response
 
-@celery.task(name="import_user")
+
 async def import_user(sheet, user_collections, result: list):
     col_map = get_column_map()
     start_row = 1
@@ -124,8 +122,14 @@ def to_str(c, col_map):
 
 
 async def create(payload: UserIn, user_collections):
-    user = await user_collections.find_one({"username": payload.username.lower()})
-    is_exist_any_user = user_collections.count_documents({})
+    user = await user_collections.find_one(
+        {
+            "$or": [
+                {"username": payload.username.lower()},
+                {"email": payload.email.lower()},
+            ]
+        },
+    )
     if user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
@@ -134,11 +138,9 @@ async def create(payload: UserIn, user_collections):
     payload.password = get_password_hash(payload.password)
     payload.email = EmailStr(payload.email.lower())
     payload.is_active = True
-    if is_exist_any_user:
-        payload.is_admin = False
-    else:
-        payload.is_admin = True
+
     new_user = User(**payload.dict())
+
     new_user_dict = jsonable_encoder(new_user)
     user_collections.insert_one(new_user_dict)
     await AfterCreateUser.send_email_noti(new_user, not_hash_password)

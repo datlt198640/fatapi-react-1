@@ -3,7 +3,6 @@ import time
 import pyexcel
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, File
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 
 from starlette import status
 from pydantic import EmailStr
@@ -20,9 +19,9 @@ from .utils import (
     get_cell_data,
     to_str,
     create,
-    import_user
+    import_user,
 )
-from auth.service import get_current_active_admin_user
+from auth.service import get_current_active_admin_user, get_current_active_user
 from pagination import paginate_response
 from .utils import AfterCreateUser
 from celery.result import AsyncResult
@@ -38,12 +37,12 @@ remove_user_router = APIRouter(prefix="/api/v1/user-delete")
 async def get_list_user(
     page_num: int = 1,
     page_size: int = 10,
-    search: str = "",
     current_user: UserOut = Depends(get_current_active_admin_user),
 ) -> list:
     result = []
     users = user_collections.find({}, {"password": 0})
     users.sort("_id", -1)
+    print("users", users)
     async for user in users:
         result.append(UserOut(**user))
     return paginate_response(result, len(result), page_num, page_size)
@@ -62,35 +61,34 @@ async def create_user(
     payload: UserIn,
     current_admin_user: UserOut = Depends(get_current_active_admin_user),
 ):
-    user = await user_collections.find_one(
-        {
-            "$or": [
-                {"username": payload.username.lower()},
-                {"email": payload.email.lower()},
-            ]
-        },
-    )
-    if user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
-        )
-    not_hash_password = payload.password
-    payload.password = get_password_hash(payload.password)
-    payload.email = EmailStr(payload.email.lower())
-    payload.is_active = True
-
-    new_user = User(**payload.dict())
-
-    new_user_dict = jsonable_encoder(new_user)
-    user_collections.insert_one(new_user_dict)
-    await AfterCreateUser.send_email_noti(new_user, not_hash_password)
+    new_user = await create(payload, user_collections)
     return new_user
 
 
 @user_router.put("/{id}", response_model=UserOut)
 async def update_user(
-    id: str, data: dict, current_user: UserOut = Depends(get_current_active_admin_user)
+    id: str,
+    data: dict,
+    current_user: UserOut = Depends(get_current_active_user),
+    current_admin_user: UserOut = Depends(get_current_active_admin_user),
 ) -> User:
+    username = data.get("username", "")
+    email = data.get("email", "")
+
+    user = await user_collections.find_one(
+        {
+            "$or": [
+                {"username": username.lower()},
+                {"email": email.lower()},
+            ],
+            "_id": id,
+        },
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username/email already exist"
+        )
     update_item_encoded = jsonable_encoder(data)
     await user_collections.update_one({"_id": id}, {"$set": update_item_encoded})
     updated_user = await user_collections.find_one({"_id": id})
@@ -125,12 +123,7 @@ async def export_users():
     users = user_collections.find({}, {"password": 0, "_id": 1})
     async for user in users:
         result.append(jsonable_encoder(UserOut(**user)))
-    task = download_excel.delay(result)
-    res = AsyncResult(task.id)
-    while not res.ready():
-        time.sleep(0.1)
-    output = res.get()
-    return {"result": output}
+    return download_excel(result)
 
 
 @user_router.post("/upload-image")
@@ -150,7 +143,9 @@ async def upload_image(
 
 
 @user_router.post("/import-user")
-async def import_users(file: UploadFile, current_user: UserOut = Depends(get_current_active_admin_user)):
+async def import_users(
+    file: UploadFile, current_user: UserOut = Depends(get_current_active_admin_user)
+):
     filename = file.filename
     extension = filename.split(".")[-1]
     content = await file.read()

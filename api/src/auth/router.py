@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, APIRouter, HTTPException, status, Request
+from fastapi.encoders import jsonable_encoder
 
 from starlette import status
 
@@ -78,13 +79,13 @@ async def change_password(
     password = payload.password
     password_confirm = payload.password_confirm
     if password != password_confirm:
-        return {"password": "Password does not match"}
+        raise HTTPException(status_code=400, detail="Password does not match")
 
     if (
         not old_password
         or verify_password(old_password, current_user.password) is False
     ):
-        return {"old_password": "Incorrect current password"}
+        raise HTTPException(status_code=400, detail="Incorrect current password")
 
     hashed_password = get_password_hash(password_confirm)
 
@@ -98,3 +99,30 @@ async def change_password(
 @auth_router.get("/users/me/", response_model=UserOut)
 def read_users_me(current_user: UserOut = Depends(get_current_active_user)):
     return current_user
+
+
+@auth_router.put("/users/me/{id}", response_model=UserOut)
+async def update_profile(
+    id: str,
+    data: dict,
+    current_user: UserOut = Depends(get_current_active_user),
+) -> User:
+    username = data.get("username", "")
+    email = data.get("email", "")
+
+    user = await user_collections.find_one(
+        {
+            "$or": [
+                {"username": username.lower()},
+                {"email": email.lower()},
+            ]
+        },
+    )
+    if user and email != current_user.email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username/email already exist"
+        )
+    update_item_encoded = jsonable_encoder(data)
+    await user_collections.update_one({"_id": id}, {"$set": update_item_encoded})
+    updated_user = await user_collections.find_one({"_id": id})
+    return updated_user

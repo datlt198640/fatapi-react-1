@@ -19,7 +19,7 @@ export default function UpdateProfileForm({ data, profileUrl, onChange }) {
     },
   };
   const userID = data._id;
-  const updateProfileURL = `/user/${userID}`;
+  const updateProfileURL = `auth/users/me/${userID}`;
 
   return (
     <Form
