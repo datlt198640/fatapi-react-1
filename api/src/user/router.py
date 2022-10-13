@@ -42,7 +42,6 @@ async def get_list_user(
     result = []
     users = user_collections.find({}, {"password": 0})
     users.sort("_id", -1)
-    print("users", users)
     async for user in users:
         result.append(UserOut(**user))
     return paginate_response(result, len(result), page_num, page_size)

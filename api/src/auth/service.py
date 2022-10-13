@@ -34,6 +34,7 @@ async def get_current_user(request: Request):
     token = get_token_from_header(request)
     token_signature = get_token_signature(token)
     user = await user_collections.find_one({"token_signature": token_signature})
+    
     if not user:
         raise credentials_exception
     try:

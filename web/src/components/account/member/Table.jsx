@@ -50,7 +50,7 @@ export default function MemberTable() {
         "post"
       )
         .then((response) => {})
-        // .catch((error) => showNotification())
+        .catch((error) => showNotification())
         .finally(() => Utils.toggleGlobalLoading(false));
     },
   };

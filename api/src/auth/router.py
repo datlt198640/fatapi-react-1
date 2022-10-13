@@ -25,13 +25,13 @@ REFRESH_EXPIRE_SECONDS = 60 * 2400
 @auth_router.post("/login", response_model=Token)
 async def login(payload: Login):
     user = await user_collections.find_one({"username": payload.username})
-    user = User(**user)
-    is_authenticated_user = True
     if not user:
-        is_authenticated_user = False
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account does not exist",
+        )
+    user = User(**user)
     if not verify_password(payload.password, user.password):
-        is_authenticated_user = False
-    if not is_authenticated_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
