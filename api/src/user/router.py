@@ -1,31 +1,28 @@
-from json import JSONDecodeError
 import time
 import pyexcel
-from fastapi import Depends, HTTPException, APIRouter, UploadFile, File
+from fastapi import Depends, HTTPException, APIRouter, UploadFile, Response
 from fastapi.encoders import jsonable_encoder
 
 from starlette import status
-from pydantic import EmailStr
 
 from database import database
 
 from .schemas import UserIn, UserOut
 from .models import User
 from .utils import (
-    get_password_hash,
+    remove_file,
     download_excel,
-    file_dest,
-    get_column_map,
-    get_cell_data,
-    to_str,
+    image_dest,
     create,
     import_user,
 )
 from auth.service import get_current_active_admin_user, get_current_active_user
 from pagination import paginate_response
-from .utils import AfterCreateUser
 from celery.result import AsyncResult
-from worker import celery
+from openpyxl import load_workbook
+from openpyxl.writer.excel import save_virtual_workbook
+from starlette.background import BackgroundTasks
+
 
 user_collections = database.get_collection("users")
 
@@ -117,12 +114,25 @@ async def remove_list_user(ids: str = "") -> None:
 
 
 @user_router.get("/download-all/")
-async def export_users():
+async def export_users(background_tasks: BackgroundTasks):
     result = []
     users = user_collections.find({}, {"password": 0, "_id": 1})
     async for user in users:
         result.append(jsonable_encoder(UserOut(**user)))
-    return download_excel(result)
+    task = download_excel.delay(result)
+    result = AsyncResult(task.id)
+    while not result.ready():
+        time.sleep(0.1)
+    file_path = result.get()
+    wb = load_workbook(file_path)
+    background_tasks.add_task(remove_file, file_path)
+    return Response(
+        save_virtual_workbook(wb),
+        headers={
+            "Content-Disposition": f"attachment; filename=list-user.xlsx",
+            "Content-Type": "application/ms-excel",
+        },
+    )
 
 
 @user_router.post("/upload-image")
@@ -133,7 +143,7 @@ async def upload_image(
     extension = filename.split(".")[-1]
     if extension not in ["png", "jpg"]:
         return {"status": "error", "detail": "File extension is not allowed"}
-    generated_name = file_dest(filename)
+    generated_name = image_dest(filename)
     file_content = await file.read()
     with open(generated_name, "wb") as file:
         file.write(file_content)

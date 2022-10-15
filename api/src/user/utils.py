@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+import tempfile
 from fastapi import Response, HTTPException
 from passlib.context import CryptContext
 from openpyxl import Workbook
@@ -11,6 +12,7 @@ from starlette import status
 from .models import User
 from .schemas import UserIn
 from helpers import Utils
+from worker import celery
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -29,7 +31,19 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+def create_temp_file():
+    fd, path = tempfile.mkstemp(suffix='.xlsx')
+    with os.fdopen(fd, 'w') as f:
+        f.write('TEST\n')
+    try:
+        yield path
+    finally:
+        os.unlink(path)
 
+def remove_file(path: str) -> None:
+    os.unlink(path)
+
+@celery.task
 def download_excel(queryset: list):
     wb = Workbook()
     ws = wb.active
@@ -58,15 +72,10 @@ def download_excel(queryset: list):
             ws.cell(row=row, column=column).value = value
 
     file_name = "list-user.xlsx"
-    response = Response(
-        save_virtual_workbook(wb),
-        headers={
-            "Content-Disposition": f"attachment; filename={file_name}",
-            "Content-Type": "application/ms-excel",
-        },
-    )
+    file_path = excel_dest(file_name)
+    wb.save(file_path)
 
-    return response
+    return file_path
 
 
 async def import_user(sheet, user_collections, result: list):
@@ -89,9 +98,14 @@ async def import_user(sheet, user_collections, result: list):
     return result
 
 
-def file_dest(filename):
+def image_dest(filename):
     ext = filename.split(".")[-1]
     return os.path.join("./static/images", f"{uuid.uuid4()}.{ext}")
+
+
+def excel_dest(filename):
+    ext = filename.split(".")[-1]
+    return os.path.join("./static/excel", f"{uuid.uuid4()}.{ext}")
 
 
 def get_column_map():
