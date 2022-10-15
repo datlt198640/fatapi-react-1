@@ -1,21 +1,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import {
-  Row,
-  Col,
-  Button,
-  Table,
-  Typography,
-  Upload,
-  notification,
-} from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  ImportOutlined,
-  DownloadOutlined,
-} from "@ant-design/icons";
+import { Row, Col, Button, Table, Upload, notification } from "antd";
+import { EditOutlined, DeleteOutlined, PlusOutlined, ImportOutlined, DownloadOutlined } from "@ant-design/icons";
 import Pagination, { defaultLinks } from "utils/components/table/Pagination";
 import Utils from "utils/Utils";
 import Dialog from "./dialog";
@@ -28,30 +14,35 @@ export default function MemberTable() {
   const [links, setLinks] = useState(defaultLinks);
   const [rowUID, setRowUID] = useState([]);
 
-  const showNotification = () => {
-    notification["error"]({
-      message: "Error",
-      description: "Account already exist",
+  const showNotification = (type, message, description) => {
+    notification[type]({
+      message: message,
+      description: description,
       duration: 8,
     });
   };
 
   const props = {
     multiple: false,
-    disableUpload: true,
     showUploadList: false,
     onChange({ file }) {
       const formData = new FormData();
-      formData.append("file", file.originFileObj);
+      formData.append("file", file);
       Utils.toggleGlobalLoading(true);
-      Utils.apiCall(
-        "http://0.0.0.0:8000/api/v1/user/import-user/",
-        formData,
-        "post"
-      )
-        .then((response) => {})
-        .catch((error) => showNotification())
-        .finally(() => Utils.toggleGlobalLoading(false));
+      Utils.apiCall("http://0.0.0.0:8000/api/v1/user/import-user/", formData, "post")
+        .then((response) => {
+          if (response.status === 200) {
+            getList()();
+            showNotification("success", "Success", "Upload user successfully");
+          }
+        })
+        .catch((error) => {
+          console.log("error", error);
+          return showNotification("error", "Error", "Account already exist");
+        })
+        .finally(() => {
+          Utils.toggleGlobalLoading(false);
+        });
     },
   };
 
@@ -129,9 +120,7 @@ export default function MemberTable() {
   const onExport = async () => {
     Utils.toggleGlobalLoading(true);
     try {
-      await Utils.handleDownloadLink(
-        "http://0.0.0.0:8000/api/v1/user/download-all/"
-      );
+      await Utils.handleDownloadLink("http://0.0.0.0:8000/api/v1/user/download-all/");
     } catch (e) {
       console.error(e);
     }
@@ -196,20 +185,17 @@ export default function MemberTable() {
           </Row>
         </Col>
         <Col span={12} className="right">
-          <Upload {...props}>
-            <Button
-              type="primary"
-              icon={<ImportOutlined />}
-              style={{ marginRight: "1vw" }}
-            >
+          <Upload
+            {...props}
+            beforeUpload={() => {
+              return false;
+            }}
+          >
+            <Button type="primary" icon={<ImportOutlined />} style={{ marginRight: "1vw" }}>
               Import
             </Button>
           </Upload>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={() => onExport()}
-          >
+          <Button type="primary" icon={<DownloadOutlined />} onClick={() => onExport()}>
             Export
           </Button>
         </Col>
@@ -226,11 +212,7 @@ export default function MemberTable() {
         scroll={{ x: 1000 }}
         pagination={false}
       />
-      <Pagination
-        next={links.next}
-        prev={links.previous}
-        onChange={getList(true)}
-      />
+      <Pagination next={links.next} prev={links.previous} onChange={getList(true)} />
       <Dialog onChange={onChange} />
     </div>
   );
