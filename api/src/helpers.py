@@ -25,13 +25,6 @@ class Utils:
         full_name = user.full_name
         username = user.username
         password = not_hash_password
-        email = user.email
-
-        context = {
-            "fullname": full_name,
-            "username": username,
-            "password": password,
-        }
         subject = "[RAY] Response from RAY"
         target = ["ltdat1001@gmail.com"]
         content = f"Hello {full_name}\nWelcome you to RAY, Your account has just been created to access the system. To start use, please access 'http://localhost:3000/#/login?next=/' to login your account:\nUsername: {username}\nPassowrd: {password}\n Best regards,"

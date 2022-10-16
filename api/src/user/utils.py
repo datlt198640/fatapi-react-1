@@ -1,7 +1,8 @@
-import json
 import os
 import uuid
+import base64
 import tempfile
+import pyexcel
 from fastapi import Response, HTTPException
 from passlib.context import CryptContext
 from openpyxl import Workbook
@@ -13,9 +14,11 @@ from .models import User
 from .schemas import UserIn
 from helpers import Utils
 from worker import celery
+from database import database
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+user_collections = database.get_collection("users")
 
 
 class AfterCreateUser:
@@ -31,17 +34,20 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+
 def create_temp_file():
-    fd, path = tempfile.mkstemp(suffix='.xlsx')
-    with os.fdopen(fd, 'w') as f:
-        f.write('TEST\n')
+    fd, path = tempfile.mkstemp(suffix=".xlsx")
+    with os.fdopen(fd, "w") as f:
+        f.write("TEST\n")
     try:
         yield path
     finally:
         os.unlink(path)
 
+
 def remove_file(path: str) -> None:
     os.unlink(path)
+
 
 @celery.task
 def download_excel(queryset: list):
@@ -78,9 +84,14 @@ def download_excel(queryset: list):
     return file_path
 
 
-async def import_user(sheet, user_collections, result: list):
+@celery.task
+def import_user(content, extension):
+    excel_file = base64.b64decode(content)
+    book = pyexcel.get_book(file_type=extension, file_content=excel_file)
+    sheet = book.sheet_by_index(0)
     col_map = get_column_map()
     start_row = 1
+    result = []
     for index, row in enumerate(sheet):
         if index < start_row:
             continue
@@ -93,8 +104,8 @@ async def import_user(sheet, user_collections, result: list):
             "password": to_str_inner("password"),
             "is_admin": True if to_str_inner("is_admin") == "admin" else False,
         }
-        user = await create(UserIn(**data), user_collections)
-        result.append(user)
+        # user = await create(UserIn(**data))
+        result.append(data)
     return result
 
 
@@ -135,7 +146,7 @@ def to_str(c, col_map):
     return inner
 
 
-async def create(payload: UserIn, user_collections):
+async def create(payload: UserIn):
     user = await user_collections.find_one(
         {
             "$or": [
@@ -146,7 +157,7 @@ async def create(payload: UserIn, user_collections):
     )
     if user:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Account already exist"
+            status_code=status.HTTP_409_CONFLICT, detail="Invalid username/email !"
         )
     not_hash_password = payload.password
     payload.password = get_password_hash(payload.password)

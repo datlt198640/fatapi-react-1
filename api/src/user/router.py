@@ -1,4 +1,6 @@
 import time
+import binascii
+import base64
 import pyexcel
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Response
 from fastapi.encoders import jsonable_encoder
@@ -22,6 +24,7 @@ from celery.result import AsyncResult
 from openpyxl import load_workbook
 from openpyxl.writer.excel import save_virtual_workbook
 from starlette.background import BackgroundTasks
+from pydantic import EmailStr
 
 
 user_collections = database.get_collection("users")
@@ -57,7 +60,7 @@ async def create_user(
     payload: UserIn,
     current_admin_user: UserOut = Depends(get_current_active_admin_user),
 ):
-    new_user = await create(payload, user_collections)
+    new_user = await create(payload)
     return new_user
 
 
@@ -69,8 +72,7 @@ async def update_user(
     current_admin_user: UserOut = Depends(get_current_active_admin_user),
 ) -> User:
     username = data.get("username", "")
-    email = data.get("email", "")
-
+    email = data.get("email", "").lower()
     user = await user_collections.find_one(
         {
             "$or": [
@@ -83,7 +85,7 @@ async def update_user(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Username/email already exist"
+            status_code=status.HTTP_409_CONFLICT, detail="Invalid username/email"
         )
     update_item_encoded = jsonable_encoder(data)
     await user_collections.update_one({"_id": id}, {"$set": update_item_encoded})
@@ -155,11 +157,18 @@ async def upload_image(
 async def import_users(
     file: UploadFile, current_user: UserOut = Depends(get_current_active_admin_user)
 ):
+
     filename = file.filename
     extension = filename.split(".")[-1]
     content = await file.read()
     book = pyexcel.get_book(file_type=extension, file_content=content)
     sheet = book.sheet_by_index(0)
-    result = []
-    await import_user(sheet, user_collections, result)
-    return result
+    excel_base64 = base64.b64encode(content).decode()
+    task = import_user.delay(excel_base64, extension)
+    result = AsyncResult(task.id)
+    while not result.ready():
+        time.sleep(0.1)
+    if result.get():
+        for user in result.get():
+            await create(UserIn(**user))
+    return result.get()
